@@ -40,25 +40,25 @@ int main()
                         if((events[i].data.fd==pipe_fd[0])&&(events[0].events&EPOLLIN))
                         {
                                 int r_num=read(pipe_fd[0],r_buf,100);
-                                printf("read num is %d bytes data from the pipe,value is %d \n",r_num,atoi(r_buf));
+                                printf("sub: read num is %d bytes data from the pipe,value is %d \n",r_num,atoi(r_buf));
                         }
                 }
                 close(pipe_fd[1]);
                 close(pipe_fd[0]);
                 close(epfd);
-                cout<<"parent close read fd[0],wirte fd[1] and epfd over"<<endl;
+                cout<<"sub: parent close read fd[0],wirte fd[1] and epfd over"<<endl;
 
         }
         else if(pid==0)
         {
                 close(pipe_fd[0]);//read
-                cout<<"sub close read fd[0] over,sub does't read"<<endl;
+                cout<<"main:sub close read fd[0] over,sub does't read"<<endl;
                 char w_buf[100];
                 strcpy(w_buf,"1234");
                 if(write(pipe_fd[1],w_buf,5)!=-1)//you can remove this line for learn
-                        printf("sub write over \n");
+                	printf("main:sub write over \n");
                 close(pipe_fd[1]);//write
-                printf("sub close write fd[1] over \n");
+                printf("main:sub close write fd[1] over \n");
 
         }
 
