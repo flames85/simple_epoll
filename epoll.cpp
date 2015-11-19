@@ -107,6 +107,7 @@ int main()
 				{
 					printf("new connection\n");
 					setnonblocking(conn_sock);
+					// LT自动挡，ET手动挡(epoll)
 					ev.events = EPOLLIN | EPOLLET; // 因为accept成功了，所以设置可读和边缘触发
 					ev.data.fd = conn_sock;
 					if (epoll_ctl(epfd, EPOLL_CTL_ADD, conn_sock, &ev) == -1) 
