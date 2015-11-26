@@ -8,10 +8,9 @@ class HycNormalTask : public HycTask
 public:
     HycNormalTask();
 
-    virtual void TriggerNewConnection(int socket) ;
     virtual void TriggerReadReady(int socket) ;
     virtual void TriggerTimeout(int nType);
-    virtual void TriggerMessage(char* data, int len);
+    virtual void TriggerMessage(char* sData, int nLen);
 };
 
 #endif // HYC_NORMAL_TASK_H

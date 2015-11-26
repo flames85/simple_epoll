@@ -18,7 +18,16 @@ void HycNormalTask::TriggerReadReady(int socket)
     if (nRead == -1 && errno != EAGAIN)
     {
         perror("read error");
+        HycEvent event;
+        event.type = EVENT_REMOVE;
+        this->PostEvent(event);
     }
+//    if (nRead == 0)
+//    {
+//        HycEvent event;
+//        event.type = EVENT_REMOVE;
+//        this->PostEvent(event);
+//    }
 }
 
 void HycNormalTask::TriggerTimeout(int nType)

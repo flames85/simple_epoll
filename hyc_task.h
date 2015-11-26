@@ -1,13 +1,16 @@
 #ifndef HYC_TASK_H
 #define HYC_TASK_H
 
-#include "hyc_object.h"
+#include <set>
+#include <string>
+
+using namespace std;
 
 enum HycEventType{
-    EVENT_REGISTER = 0,
-    EVENT_LINTEN,
-    EVENT_RECEIVE,
-    EVENT_REMOVE,
+    EVENT_REGISTER = 0, //
+    EVENT_LINTEN,       //
+    EVENT_RECEIVE,      //
+    EVENT_REMOVE,       //
     EVENT_TIMER,
     EVENT_MESSAGE
 };
@@ -69,7 +72,7 @@ protected:
 private:
     string              m_sName;
     HycTask            *m_master;
-    set<HycObject*>     m_slavers;
+    set<HycTask*>       m_slavers;
 };
 
 
