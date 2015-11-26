@@ -1,0 +1,27 @@
+#ifndef HYC_TASK_MGR_H
+#define HYC_TASK_MGR_H
+
+// stl
+#include <string>
+
+class HycTask;
+
+struct TaskInfo {
+    HycTask *task;
+
+};
+
+class HycTaskMgr
+{
+public:
+    HycTaskMgr();
+
+    bool AddTask(const string &sName, const HycTask *task);
+
+    HycTask* GetTask(const string &sName);
+
+private:
+    map<string, HycTask*>   m_taskMap;
+};
+
+#endif // HYC_TASK_MGR_H

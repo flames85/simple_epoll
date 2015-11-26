@@ -1,5 +1,10 @@
-/home/parallels/git/simple_epoll/epoll.cpp
-/home/parallels/git/simple_epoll/hyc_thread.cpp
-/home/parallels/git/simple_epoll/hyc_thread.h
-/home/parallels/git/simple_epoll/pipe.cpp
-/home/parallels/git/simple_epoll/task.cpp
+hyc_thread.cpp
+hyc_thread.h
+hyc_task.h
+hyc_task.cpp
+hyc_task_master.h
+hyc_task_master.cpp
+hyc_server_task.h
+hyc_server_task.cpp
+hyc_normal_task.cpp
+hyc_normal_task.h
