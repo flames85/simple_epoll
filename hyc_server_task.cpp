@@ -5,23 +5,12 @@
 #include "hyc_server_task.h"
 #include "hyc_normal_task.h"
 #include "hyc_master_mgr.h"
+#include "hyc_stl_tool.h"
 
 HycServerTask::HycServerTask(const string &sName) :
-    HycTask(sName)
+    HycTask(sName),
+    nCount(0)
 {
-    HycTaskMaster *master = HycMasterMgr::GetInstance()->GetMaster("MASTER"); // todo
-
-    // 1. 先向master注册
-    HycEvent event;
-    event.type = EVENT_REGISTER;
-    event.detail.registerdetail.task = this;
-    master->PostEvent(event);
-
-    // 2. 再向task发数据
-    event.type = EVENT_LINTEN;
-    event.detail.listenDetail.s_addr = htonl(INADDR_ANY);
-    event.detail.listenDetail.nPort = htons(1234);
-    this->PostEvent(event);
 }
 
 HycServerTask::~HycServerTask()
@@ -31,22 +20,19 @@ HycServerTask::~HycServerTask()
 
 void HycServerTask::TriggerNewConnection(int socket)
 {
-    cout << "HycNormalTask::TriggerNewConnection" << endl;
+    string sTaskName = "task_" + STL::int2str(nCount++);
 
-    HycNormalTask *task = new HycNormalTask("new-task"); // todo
+    cout << "HycNormalTask::TriggerNewConnection:" << m_sName << ":" << sTaskName << endl;
+
+    HycNormalTask *task = new HycNormalTask(sTaskName); // todo
 
     HycTaskMaster *master = HycMasterMgr::GetInstance()->GetMaster("MASTER"); // todo
 
-    // 1. 先向master注册
     HycEvent event;
-    event.type = EVENT_REGISTER;
-    event.detail.registerdetail.task = task;
-    master->PostEvent(event);
-
-    // 2. 再向task发数据
     event.type = EVENT_RECEIVE;
+    event.detail.receiveDetail.task = task;
     event.detail.receiveDetail.socket = socket;
-    task->PostEvent(event);
+    master->PostEvent(event);
 }
 
 void HycServerTask::TriggerMessage(char* sData, int nLen)

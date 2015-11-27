@@ -1,4 +1,4 @@
-TARGET = test_epoll
+TARGET = demo
 
 LDFLAGS = -march=x86-64
 

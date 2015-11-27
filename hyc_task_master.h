@@ -13,11 +13,16 @@
 using namespace std;
 
 
-class HycTaskMaster : public HycTask, HycThread
+class HycTaskMaster : public HycTask , public HycThread
 {
 public:
     HycTaskMaster(const string &sName);
     virtual ~HycTaskMaster();
+
+    void test()
+    {
+
+    }
 private:
     bool BindPipe(HycTask *task);
     bool BindListen(HycTask *task, unsigned long s_addr, int nPort);
@@ -40,7 +45,7 @@ private:
     int                 m_epfd;
 
     // 所有在master中的task都在这里保存(当然也包含下面那些timer)
-    map<HycTask*, list<int> >  m_EventTasks;
+    map<HycTask*, set<int> >  m_EventTasks;
 
 
     // 所有timer

@@ -24,19 +24,19 @@ public:
     void                      WaitThisThread();
 #ifdef WIN32
     static unsigned __stdcall s_ThreadProc(void* self);
-    HANDLE                    StartThread();
+    HANDLE                    Start();
 private:
     void                      SetNameInternal(DWORD dwThreadID, const char*     HycThreadName);
 public:
     HANDLE                    m_handle;
 #else
     static void *             s_ThreadProc(void* self);
-    pthread_t                 StartThread();
+    pthread_t                 Start();
 public:
-    pthread_t                m_id;
+    pthread_t                 m_id;
 #endif
 private:
-    string                   m_strThreadName;
+    string                    m_strThreadName;
 };
 
 #endif // HYC_THREAD_H

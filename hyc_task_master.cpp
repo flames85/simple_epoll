@@ -82,6 +82,8 @@ bool HycTaskMaster::BindPipe(HycTask *task)
 {
     if(!task) return false;
 
+    if(task->m_pipe_fd[0] != 0) return false; // 已经绑定过
+
     struct epoll_event tmp_event;             //事件临时变量
     int ret = 0;
     if( (ret = pipe(task->m_pipe_fd)) <0)
@@ -97,7 +99,7 @@ bool HycTaskMaster::BindPipe(HycTask *task)
     tmp_event.data.ptr = oData;
     tmp_event.events = EPOLLIN | EPOLLET;    //设置要处理的事件类型
 
-    ret = epoll_ctl(m_epfd, EPOLL_CTL_ADD, task->m_pipe_fd[0], &tmp_event);
+    ret = epoll_ctl(m_epfd, EPOLL_CTL_ADD, oData->fd, &tmp_event);
     if (ret != 0)
     {
         cout << "epoll_ctl fail:" << ret << ",errno:" << errno << endl;
@@ -117,6 +119,18 @@ bool HycTaskMaster::BindListen(HycTask *task, unsigned long s_addr, int nPort)
     if(!task) return false;
 
     int listenfd = 0;
+    //创建listen socket
+    if( (listenfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    {
+        perror("sockfdn");
+        return false;
+    }
+    // 设置fd属性都在绑定前
+    // 1. 端口复用
+    SetReuse(listenfd);
+    // 2. 非阻塞
+    SetNonBlocking(listenfd);
+
     struct sockaddr_in addr;
     // 3. bind
     bzero(&addr, sizeof(addr));
@@ -131,18 +145,6 @@ bool HycTaskMaster::BindListen(HycTask *task, unsigned long s_addr, int nPort)
 
     // 4. listen
     listen(listenfd, 20);
-
-    //创建listen socket
-    if( (listenfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-    {
-        perror("sockfdn");
-        exit(1);
-    }
-    // 设置fd属性都在绑定前
-    // 1. 端口复用
-    SetReuse(listenfd);
-    // 2. 非阻塞
-    SetNonBlocking(listenfd);
 
     // 6. 添加listen-fd的可读事件
     struct epoll_event tmp_event;
@@ -234,13 +236,13 @@ bool HycTaskMaster::SaveEvent(HycTask *task, int fd)
     // 添加进成员变量里
     if(m_EventTasks.find(task) == m_EventTasks.end())
     {
-        list<int> fdList;
-        fdList.push_back(task->m_pipe_fd[0]);
-        m_EventTasks[task] = fdList;
+        set<int> fdset;
+        fdset.insert(task->m_pipe_fd[0]);
+        m_EventTasks[task] = fdset;
     }
     else
     {
-        m_EventTasks[task].push_back(fd);
+        m_EventTasks[task].insert(fd);
     }
     return true;
 }
@@ -249,14 +251,14 @@ bool HycTaskMaster::DelEvent(HycTask *task)
 {
     if(!task) return false;
 
-    map<HycTask*, list<int> >::iterator itTask = m_EventTasks.find(task);
+    map<HycTask*, set<int> >::iterator itTask = m_EventTasks.find(task);
     if(itTask == m_EventTasks.end())
     {
         return true;
     }
 
-    list<int> &fdList = itTask->second;
-    list<int>::iterator itfd = fdList.begin();
+    set<int> &fdList = itTask->second;
+    set<int>::iterator itfd = fdList.begin();
 
     for(; itfd != fdList.end(); itfd++)
     {
@@ -288,6 +290,7 @@ int HycTaskMaster::ThreadProc()
     int nfds = 0; // 事件数量
     for (;;)
     {
+        cout << "start epoll_pwait" << endl;
         if(m_timerTasks.empty()) // 当前无定时器任务, 无限等待
         {
             nfds = epoll_wait(m_epfd, all_events, MAX_EVENTS, -1);
@@ -327,6 +330,7 @@ int HycTaskMaster::ThreadProc()
         }
         else if(nfds == -1) // error
         {
+            cout << "epoll_pwait error:" << errno << endl;
             perror("epoll_pwait");
             continue;
         }
@@ -374,60 +378,60 @@ int HycTaskMaster::ThreadProc()
                     //! 3. 管道事件
                     if(event_info & EPOLLIN)
                     {
-                        HycEvent event;
                         if(oData->task == this) // 1. 管道消息是发给master的
                         {
+                            HycEvent event;
                             if(!oData->task->Event(event))
                             {
-                                // error
-                                continue;
+                                continue; // error
                             }
                             switch(event.type)
                             {
-                                case EVENT_REGISTER:
-                                // 1. 管道注册
-                                BindPipe(event.detail.registerdetail.task);
+                                case EVENT_STANDBY:
+                                BindPipe(event.detail.standbydetail.task);
                                 break;
-                                default:
-                                break;
-                            }
-                        }
-                        else                  // 2. 管道已经注册过,发的是进一步事件
-                        {
-                            if(!oData->task->Event(event))
-                            {
-                                // error
-                                continue;
-                            }
-                            switch(event.type)
-                            {
+
                                 case EVENT_LINTEN:
-                                BindListen(oData->task,
+                                BindPipe(event.detail.listenDetail.task);
+                                BindListen(event.detail.listenDetail.task,
                                            event.detail.listenDetail.s_addr,
                                            event.detail.listenDetail.nPort);
                                 break;
 
                                 case EVENT_RECEIVE:
-                                BindReciver(oData->task, event.detail.receiveDetail.socket);
+                                BindPipe(event.detail.receiveDetail.task);
+                                BindReciver(event.detail.receiveDetail.task,
+                                            event.detail.receiveDetail.socket);
                                 break;
 
                                 case EVENT_TIMER:
-                                BindTimer(oData->task,
+                                BindPipe(event.detail.timerDetail.task);
+                                BindTimer(event.detail.timerDetail.task,
                                           event.detail.timerDetail.nFlag,
                                           event.detail.timerDetail.nInterval,
                                           event.detail.timerDetail.bRepeat);
-                                BindPipe(oData->task);
                                 break;
 
+                                default:
+                                break;
+                            }
+                        }
+                        else                  // 2. 管道是发送给slave的
+                        {
+                            HycEvent event;
+                            if(!oData->task->Event(event))
+                            {
+                                continue; // error
+                            }
+                            switch(event.type)
+                            {
                                 case EVENT_MESSAGE:
                                 oData->task->TriggerMessage(event.detail.messageDetail.sData,
                                                             event.detail.messageDetail.nLen);
                                 break;
 
                                 case EVENT_REMOVE:
-
                                 RemoveBind(oData->task);
-
                                 break;
 
                                 default:

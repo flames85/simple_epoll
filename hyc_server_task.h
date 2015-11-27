@@ -12,6 +12,10 @@ public:
 
     virtual void TriggerNewConnection(int socket) ;
     virtual void TriggerMessage(char* sData, int nLen);
+
+private:
+
+    int nCount;
 };
 
 #endif // HYC_SERVER_TASK_H

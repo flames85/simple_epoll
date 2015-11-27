@@ -71,7 +71,7 @@ unsigned __stdcall HycThread::s_ThreadProc(void* self)
     return _self->ThreadProc();
 }
 
-HANDLE HycThread::StartThread()
+HANDLE HycThread::Start()
 {
     // 线程id
     DWORD nThreadId;
@@ -106,9 +106,11 @@ void * HycThread::s_ThreadProc(void* self)
     return NULL;
 }
 
-pthread_t HycThread::StartThread()
+pthread_t HycThread::Start()
 {
-    pthread_create(&m_id, NULL, s_ThreadProc, this);
+    pthread_attr_t threadAttr;      // “线程”属性
+    pthread_attr_init(&threadAttr); // 初始化“线程”属性，这里默认是分离线程
+    pthread_create(&m_id, &threadAttr, s_ThreadProc, this);
     return m_id;
 }
 void HycThread::WaitThisThread()

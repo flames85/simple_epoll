@@ -1,8 +1,11 @@
+// linux
+#include <string.h>
+// pro
 #include "hyc_task.h"
 
 HycTask::HycTask(const string &sName):m_sName(sName)
 {
-
+    memset(m_pipe_fd, 0x0, sizeof(m_pipe_fd));
 }
 HycTask::~HycTask()
 {

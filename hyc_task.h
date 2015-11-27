@@ -13,32 +13,33 @@ using namespace std;
 
 class HycTask;
 
-enum HycEventType{
-    EVENT_REGISTER = 0, //
-    EVENT_LINTEN,       //
-    EVENT_RECEIVE,      //
-    EVENT_REMOVE,       //
-    EVENT_TIMER,
-    EVENT_MESSAGE
+enum HycEventType
+{
+    EVENT_STANDBY = 0,      // to master
+    EVENT_LINTEN,           // to master // test
+    EVENT_RECEIVE,          // to master // test
+    EVENT_REMOVE,           // to slave  // test
+    EVENT_TIMER,            // to slave
+    EVENT_MESSAGE           // to slave
 };
 
 // to group
-struct RegisterDetail{
+struct StandbyDetail{
     HycTask      *task;
 };
-
-// to Task
 struct ListenDetail {
+    HycTask        *task;
     unsigned long  s_addr; // ip
     short          nPort;
 };
 struct ReceiveDetail {
-    int           socket;
+    HycTask        *task;
+    int            socket;
 };
-struct RemoveDetail {
 
-};
+// task
 struct TimerDetail {
+    HycTask       *task;
     int           nFlag;
     int           nInterval;
     bool          bRepeat;
@@ -49,7 +50,7 @@ struct MessageDetail {
 };
 
 union EventDetail {
-    RegisterDetail  registerdetail;
+    StandbyDetail   standbydetail;
     ListenDetail    listenDetail;
     ReceiveDetail   receiveDetail;
     TimerDetail     timerDetail;
@@ -80,9 +81,10 @@ protected:
 
 public:
     int                 m_pipe_fd[2];
+    string              m_sName;
 
 private:
-    string              m_sName;
+
     HycTask            *m_master;
     set<HycTask*>       m_slavers;
 };
