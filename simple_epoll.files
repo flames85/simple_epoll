@@ -8,3 +8,6 @@ hyc_server_task.h
 hyc_server_task.cpp
 hyc_normal_task.cpp
 hyc_normal_task.h
+hyc_master_mgr.h
+hyc_master_mgr.cpp
+demo.cpp

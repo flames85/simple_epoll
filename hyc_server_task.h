@@ -1,15 +1,17 @@
 #ifndef HYC_SERVER_TASK_H
 #define HYC_SERVER_TASK_H
 
+// pro
 #include "hyc_task.h"
 
 class HycServerTask : public HycTask
 {
 public:
-    HycServerTask();
+    HycServerTask(const string &sName);
+    virtual ~HycServerTask();
 
     virtual void TriggerNewConnection(int socket) ;
-    virtual void TriggerTimeout(int nType);
+    virtual void TriggerMessage(char* sData, int nLen);
 };
 
 #endif // HYC_SERVER_TASK_H

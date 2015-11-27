@@ -1,12 +1,15 @@
 // linux
 #include <arpa/inet.h>
 // pro
+#include "hyc_task_master.h"
 #include "hyc_server_task.h"
 #include "hyc_normal_task.h"
+#include "hyc_master_mgr.h"
 
-HycServerTask::HycServerTask()
+HycServerTask::HycServerTask(const string &sName) :
+    HycTask(sName)
 {
-    master = Mgr->getMaster();
+    HycTaskMaster *master = HycMasterMgr::GetInstance()->GetMaster("MASTER"); // todo
 
     // 1. 先向master注册
     HycEvent event;
@@ -21,13 +24,18 @@ HycServerTask::HycServerTask()
     this->PostEvent(event);
 }
 
+HycServerTask::~HycServerTask()
+{
+
+}
+
 void HycServerTask::TriggerNewConnection(int socket)
 {
     cout << "HycNormalTask::TriggerNewConnection" << endl;
 
-    HycNormalTask *task = new HycNormalTask;
+    HycNormalTask *task = new HycNormalTask("new-task"); // todo
 
-    master = Mgr->getMaster();
+    HycTaskMaster *master = HycMasterMgr::GetInstance()->GetMaster("MASTER"); // todo
 
     // 1. 先向master注册
     HycEvent event;

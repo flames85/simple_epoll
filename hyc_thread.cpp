@@ -8,13 +8,14 @@
 
 
 HycThread::HycThread(const string &strThreadName):
-    m_strThreadName(strThreadName),
 #ifdef WIN32
-    m_handle(0)
+    m_handle(0),
 #else
-    m_id(0)
+    m_id(0),
 #endif
+    m_strThreadName(strThreadName)
 {
+
 }
 
 HycThread::~HycThread()
@@ -91,7 +92,7 @@ void HycThread::WaitThisThread()
 
 #else // linux实现方式
 
-void * __stdcall HycThread::s_ThreadProc(void* self)
+void * HycThread::s_ThreadProc(void* self)
 {
     // self obj
     HycThread *_self = (HycThread*)self;
@@ -114,3 +115,5 @@ void HycThread::WaitThisThread()
 {
     pthread_join(m_id, NULL);
 }
+
+#endif

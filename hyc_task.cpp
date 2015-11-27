@@ -1,6 +1,10 @@
 #include "hyc_task.h"
 
-void HycTask::TriggerTask()
+HycTask::HycTask(const string &sName):m_sName(sName)
+{
+
+}
+HycTask::~HycTask()
 {
 
 }

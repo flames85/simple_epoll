@@ -1,10 +1,17 @@
 #ifndef HYC_TASK_H
 #define HYC_TASK_H
 
+#include <iostream>
 #include <set>
 #include <string>
+#include <errno.h>
 
 using namespace std;
+
+#define BUFF_SIZE 1024
+
+
+class HycTask;
 
 enum HycEventType{
     EVENT_REGISTER = 0, //
@@ -57,17 +64,22 @@ struct HycEvent {
 class HycTask
 {
 public:
+    HycTask(const string &sName);
+    virtual ~HycTask();
+
     // 发消息
     virtual bool PostEvent(const HycEvent &event);
-
-protected:
-    // 收消息
-    virtual bool Event(HycEvent &event);
 
     virtual void TriggerNewConnection(int socket);
     virtual void TriggerReadReady(int socket);
     virtual void TriggerTimeout(int nType);
     virtual void TriggerMessage(char* sData, int nLen);
+    virtual bool Event(HycEvent &event);
+
+protected:
+
+public:
+    int                 m_pipe_fd[2];
 
 private:
     string              m_sName;

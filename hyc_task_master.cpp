@@ -17,6 +17,7 @@
 // pro
 #include "hyc_task_master.h"
 
+#define MAX_EVENTS  10
 
 enum ObjectFdType {
     FD_TYPE_LISTEN = 0,
@@ -31,12 +32,14 @@ struct ObjectData {
     explicit ObjectData()
     {
         fd = 0;
-        obj = NULL;
+        task = NULL;
         type = FD_TYPE_LISTEN;
     }
 };
 
-HycTaskMaster::HycTaskMaster()
+HycTaskMaster::HycTaskMaster(const string &sName):
+    HycTask(sName),
+    HycThread(sName)
 {
 }
 
@@ -44,19 +47,44 @@ HycTaskMaster::~HycTaskMaster()
 {
 }
 
-int GetCurrentSecond() {
-    return time((time_t*)NULL);
+
+//设置socket连接为非阻塞模式
+bool HycTaskMaster::SetNonBlocking(int sockfd)
+{
+    int opts;
+
+    opts = fcntl(sockfd, F_GETFL);
+    if(opts < 0) {
+        perror("fcntl(F_GETFL)n");
+        return false;
+    }
+    opts = (opts | O_NONBLOCK);
+    if(fcntl(sockfd, F_SETFL, opts) < 0)
+    {
+        perror("fcntl(F_SETFL)n");
+        return false;
+    }
+    return true;
 }
 
-bool HycTaskMaster::Event(const HycEvent &event)
+void HycTaskMaster::SetReuse(int sockfd)
 {
+    // 端口复用,为了不至于timewait的端口无法再次监听
+    int opt = 1;
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (const void *)&opt, sizeof(opt));
+}
 
+int HycTaskMaster::GetCurrentSecond() {
+    return time((time_t*)NULL);
 }
 
 bool HycTaskMaster::BindPipe(HycTask *task)
 {
+    if(!task) return false;
+
     struct epoll_event tmp_event;             //事件临时变量
-    if((ret = pipe(task->m_pipe_fd)) <0)
+    int ret = 0;
+    if( (ret = pipe(task->m_pipe_fd)) <0)
     {
         cout << "create pipe fail: " << ret << ",errno:" << errno <<endl;
         return false;
@@ -86,7 +114,9 @@ bool HycTaskMaster::BindPipe(HycTask *task)
 
 bool HycTaskMaster::BindListen(HycTask *task, unsigned long s_addr, int nPort)
 {
-    int listenfd;
+    if(!task) return false;
+
+    int listenfd = 0;
     struct sockaddr_in addr;
     // 3. bind
     bzero(&addr, sizeof(addr));
@@ -110,11 +140,12 @@ bool HycTaskMaster::BindListen(HycTask *task, unsigned long s_addr, int nPort)
     }
     // 设置fd属性都在绑定前
     // 1. 端口复用
-    setReuse(listenfd);
+    SetReuse(listenfd);
     // 2. 非阻塞
-    setNonBlocking(listenfd);
+    SetNonBlocking(listenfd);
 
     // 6. 添加listen-fd的可读事件
+    struct epoll_event tmp_event;
     tmp_event.events = EPOLLIN;
     ObjectData *oData = new ObjectData();
     oData->fd = listenfd;
@@ -129,15 +160,17 @@ bool HycTaskMaster::BindListen(HycTask *task, unsigned long s_addr, int nPort)
     }
 
     // 添加进成员变量里
-    SaveEvent(task, oData->fd);
+    return SaveEvent(task, oData->fd);
 }
 
 bool HycTaskMaster::BindReciver(HycTask *task, int socket)
 {
+    if(!task) return false;
+
     // 一个临时envnt结构
     struct epoll_event tmp_event;
 
-    setNonBlocking(socket);
+    SetNonBlocking(socket);
     // LT自动挡，ET手动挡(epoll)
     tmp_event.events = EPOLLIN | EPOLLET; // 因为accept成功了，所以设置可读和边缘触发
 
@@ -154,12 +187,14 @@ bool HycTaskMaster::BindReciver(HycTask *task, int socket)
     }
     // 添加进成员变量里
     SaveEvent(task, oData->fd);
+
+    return true;
 }
 
 // 通过读取的管道信息, 转化而来,或者内部写回
 bool HycTaskMaster::BindTimer(HycTask *task, int nFlag, int nInterval, bool bRepeat)
 {
-    if(!obj) return false;
+    if(!task) return false;
 
     TimerInfo info;
     int nTimeout = GetCurrentSecond() + nInterval;
@@ -183,36 +218,45 @@ bool HycTaskMaster::BindTimer(HycTask *task, int nFlag, int nInterval, bool bRep
 
 bool HycTaskMaster::RemoveBind(HycTask *task)
 {
-    DelEvent(task);
-    delete info.task;
+    if(!task) return false;
+    if(!DelEvent(task))
+    {
+        return false;
+    }
+    delete task;
     return true;
 }
 
-void HycTaskMaster::SaveEvent(HycTask *task, int fd)
+bool HycTaskMaster::SaveEvent(HycTask *task, int fd)
 {
+    if(!task) return false;
+
     // 添加进成员变量里
     if(m_EventTasks.find(task) == m_EventTasks.end())
     {
         list<int> fdList;
         fdList.push_back(task->m_pipe_fd[0]);
-        m_EventTasks.insert(task, fdList);
+        m_EventTasks[task] = fdList;
     }
     else
     {
         m_EventTasks[task].push_back(fd);
     }
+    return true;
 }
 
-void HycTaskMaster::DelEvent(HycTask *task)
+bool HycTaskMaster::DelEvent(HycTask *task)
 {
+    if(!task) return false;
+
     map<HycTask*, list<int> >::iterator itTask = m_EventTasks.find(task);
     if(itTask == m_EventTasks.end())
     {
         return true;
     }
-    const list<int> &fdList = it->second();
 
-    list<int>::const_iterator itfd =fdList.begin();
+    list<int> &fdList = itTask->second;
+    list<int>::iterator itfd = fdList.begin();
 
     for(; itfd != fdList.end(); itfd++)
     {
@@ -223,8 +267,8 @@ void HycTaskMaster::DelEvent(HycTask *task)
             return false;
         }
     }
+    return true;
 }
-
 
 int HycTaskMaster::ThreadProc()
 {
@@ -256,7 +300,7 @@ int HycTaskMaster::ThreadProc()
             if(epill_wait_max_time <= 0) // 假如定时任务已经超时了
             {
                 m_timerTasks.pop_front(); // 可以把第一条删了
-                info.task->TriggerTimeout(info.flag);         // 执行
+                info.task->TriggerTimeout(info.nFlag);         // 执行
                 if(!info.bRepeat) // 不是只执行一次的就继续添加
                     BindTimer(info.task, info.nFlag, info.nInterval, info.bRepeat);
             }
@@ -268,7 +312,8 @@ int HycTaskMaster::ThreadProc()
 
         if(nfds == 0) // 定时器超时的
         {
-            TimerInfo info = m_timerTasks.pop_front(); // 确定是超时导致的, 可以把第一条删了
+            TimerInfo info = m_timerTasks.front();
+            m_timerTasks.pop_front(); // 确定是超时导致的, 可以把第一条删了
 
             if(m_EventTasks.find(info.task) == m_EventTasks.end())
             {
@@ -276,7 +321,7 @@ int HycTaskMaster::ThreadProc()
                 continue;
             }
 
-            info.task->TriggerTimeout(info.flag);              // 执行
+            info.task->TriggerTimeout(info.nFlag);              // 执行
             if(!info.bRepeat) // 不是只执行一次的就继续添加
                 BindTimer(info.task, info.nFlag, info.nInterval, info.bRepeat);      // 继续添加
         }
@@ -285,10 +330,10 @@ int HycTaskMaster::ThreadProc()
             perror("epoll_pwait");
             continue;
         }
-        for (i = 0; i < nfds; ++i) // events
+        for (int i = 0; i < nfds; ++i) // events
         {
             ObjectData *oData = (ObjectData*)(all_events[i].data.ptr);
-            event_info = all_events[i].events;
+            uint32_t event_info = all_events[i].events;
 
             switch(oData->type)
             {
@@ -311,7 +356,7 @@ int HycTaskMaster::ThreadProc()
                     else
                     {
                         printf("new connection\n");
-                        setNonBlocking(new_conn);
+                        SetNonBlocking(new_conn);
                         oData->task->TriggerNewConnection(new_conn); // 期望回调 AddTcpReceiver
                     }
                 }
@@ -320,12 +365,7 @@ int HycTaskMaster::ThreadProc()
                 {
                     if (event_info & EPOLLIN) // 可读
                     {
-                        if(nTotal > 0)
-                        {
-                            buf[n] = '\0';
-                            printf("recv:%s\n", buf);
-                            oData->task->TriggerReadReady(oData->fd);
-                        }
+                        oData->task->TriggerReadReady(oData->fd);
                     }
                 }
                 break;
@@ -335,9 +375,9 @@ int HycTaskMaster::ThreadProc()
                     if(event_info & EPOLLIN)
                     {
                         HycEvent event;
-                        if(info.task == this) // 1. 管道消息是发给master的
+                        if(oData->task == this) // 1. 管道消息是发给master的
                         {
-                            if(!info.task->Event(event))
+                            if(!oData->task->Event(event))
                             {
                                 // error
                                 continue;
@@ -354,7 +394,7 @@ int HycTaskMaster::ThreadProc()
                         }
                         else                  // 2. 管道已经注册过,发的是进一步事件
                         {
-                            if(!info.task->Event(event))
+                            if(!oData->task->Event(event))
                             {
                                 // error
                                 continue;
@@ -362,31 +402,31 @@ int HycTaskMaster::ThreadProc()
                             switch(event.type)
                             {
                                 case EVENT_LINTEN:
-                                BindListen(info.task,
+                                BindListen(oData->task,
                                            event.detail.listenDetail.s_addr,
                                            event.detail.listenDetail.nPort);
                                 break;
 
                                 case EVENT_RECEIVE:
-                                BindReciver(info.task, event.detail.receiveDetail.socket);
+                                BindReciver(oData->task, event.detail.receiveDetail.socket);
                                 break;
 
                                 case EVENT_TIMER:
-                                BindTimer(info.task,
+                                BindTimer(oData->task,
                                           event.detail.timerDetail.nFlag,
                                           event.detail.timerDetail.nInterval,
                                           event.detail.timerDetail.bRepeat);
-                                BindPipe(info.task);
+                                BindPipe(oData->task);
                                 break;
 
                                 case EVENT_MESSAGE:
-                                info.task->TriggerMessage(event.detail.messageDetail.sData,
-                                                          event.detail.messageDetail.nLen);
+                                oData->task->TriggerMessage(event.detail.messageDetail.sData,
+                                                            event.detail.messageDetail.nLen);
                                 break;
 
                                 case EVENT_REMOVE:
 
-                                RemoveBind(info.task);
+                                RemoveBind(oData->task);
 
                                 break;
 

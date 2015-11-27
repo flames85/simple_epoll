@@ -1,17 +1,27 @@
+// linux
+#include <stdio.h> // for perror
+
+// pro
 #include "hyc_normal_task.h"
 
-HycNormalTask::HycNormalTask()
+
+HycNormalTask::HycNormalTask(const string &sName) : HycTask(sName)
 {
+}
+
+HycNormalTask::~HycNormalTask()
+{
+
 }
 
 void HycNormalTask::TriggerReadReady(int socket)
 {
     cout << "HycNormalTask::TriggerReadReady" << endl;
 
-    char buf[BUFSIZ] = {0};
+    char buf[BUFF_SIZE] = {0};
     int nTotal = 0;
     int nRead = 0;
-    while ((nRead = read(socket, buf + nTotal, BUFSIZ-1)) > 0)
+    while ((nRead = read(socket, buf + nTotal, BUFF_SIZE-1)) > 0)
     {
         nTotal += nRead;
     }

@@ -16,25 +16,24 @@ using namespace std;
 class HycTaskMaster : public HycTask, HycThread
 {
 public:
-    HycTaskMaster();
+    HycTaskMaster(const string &sName);
     virtual ~HycTaskMaster();
 private:
     bool BindPipe(HycTask *task);
-
     bool BindListen(HycTask *task, unsigned long s_addr, int nPort);
-
     bool BindReciver(HycTask *task, int socket);
-
     bool BindTimer(HycTask *task, int nFlag, int nInterval, bool bRepeat);
-
     bool RemoveBind(HycTask *task);
 
-
-    void SaveEvent(HycTask *task, int fd);
-    void DelEvent(HycTask *task);
+    bool SaveEvent(HycTask *task, int fd);
+    bool DelEvent(HycTask *task);
 
     // 线程循环
     virtual int ThreadProc();
+
+    bool SetNonBlocking(int sockfd);
+    void SetReuse(int sockfd);
+    int  GetCurrentSecond();
 
 private:
     // epoll fd

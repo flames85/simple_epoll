@@ -30,8 +30,8 @@ private:
 public:
     HANDLE                    m_handle;
 #else
-    static void * __stdcall  s_ThreadProc(void* self);
-    pthread_t                StartThread();
+    static void *             s_ThreadProc(void* self);
+    pthread_t                 StartThread();
 public:
     pthread_t                m_id;
 #endif
