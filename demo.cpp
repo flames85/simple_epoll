@@ -1,13 +1,13 @@
 // linux
 #include <arpa/inet.h>
 // pro
-#include "hyc_task_master.h"
+#include "hyc_master.h"
 #include "hyc_master_mgr.h"
-#include "hyc_server_task.h"
+#include "hyc_server_slave.h"
 
 int main()
 {
-    HycTaskMaster *master = HycMasterMgr::GetInstance()->CreateMaster("MASTER");
+    HycMaster *master = HycMasterMgr::GetInstance()->CreateMaster("MASTER");
     int tid = master->Start();
 
     cout << "tid:" << tid << endl;
@@ -15,10 +15,10 @@ int main()
     sleep(3);
 
     // 1. 向task发数据
-    HycServerTask *server = new HycServerTask("SERVER");
+    HycServerSlave *server = new HycServerSlave("SERVER");
     HycEvent event;
     event.type = EVENT_LINTEN;
-    event.detail.listenDetail.task = server;
+    event.detail.listenDetail.slave = server;
     event.detail.listenDetail.s_addr = htonl(INADDR_ANY);
     event.detail.listenDetail.nPort = 12345;
     master->PostEvent(event);

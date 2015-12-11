@@ -130,14 +130,11 @@ int main()
             exit(EXIT_FAILURE);
         }
 
-
-
         for (i = 0; i < nfds; ++i)
         {
             EventData* data = (EventData*)(events[i].data.ptr);
 			int fd = data->fd;
 			char* name = data->name;
-			printf("name is %s\n", data->name);
 
             if (fd == listenfd)
             {
@@ -145,7 +142,6 @@ int main()
                                     (struct sockaddr *) &remote,
                                     (socklen_t*)&addrlen)) > 0)
                 {
-                    printf("new connection\n");
                     setNonBlocking(conn_sock);
                     // LT自动挡，ET手动挡(epoll)
                     ev.events = EPOLLIN | EPOLLET; // 因为accept成功了，所以设置可读和边缘触发
@@ -154,6 +150,8 @@ int main()
 					memset(data->name, 0x0, sizeof(data->name));
 					sprintf(data->name, "connect%d", connectCount++);
 					ev.data.ptr = data;
+
+                    printf("new connection named[%s]\n", data->name);
 
                     if (epoll_ctl(epfd, EPOLL_CTL_ADD, conn_sock, &ev) == -1)
                     {
@@ -178,42 +176,38 @@ int main()
                 {
                     n += nread;
                 }
+				if(nread == 0) // 正常关闭
+				{
+					printf("[%s] close\n", data->name);
+					close(fd); // close了socket后就不用从，epoll_ctl 中删除了
+					continue;
+				}
                 if (nread == -1 && errno != EAGAIN)
                 {
                     perror("read error");
-                }
-                ev.events = events[i].events | EPOLLOUT; // 因为捕获到可读了，所以设置可写和边缘触发
-                if (epoll_ctl(epfd, EPOLL_CTL_MOD, fd, &ev) == -1)
-                {
-                    perror("epoll_ctl: mod");
+					continue;
                 }
 
-                if(n > 0)
-                {
-                    buf[n] = '\0';
-                    printf("recv:%s\n", buf);
-                }
-            }
-            if (events[i].events & EPOLLOUT) // 可写
-            {
-                sprintf(buf, "HTTP/1.1 200 OK\r\nContent-Length: %d\r\nHello World", 11);
+				// 到这里肯定收到了数据
+				buf[n] = '\0';
+				printf("[%s] %s\n", data->name, buf);
+
+				// 回复
+				memset(buf, 0x0, sizeof(buf));
+                sprintf(buf, "HTTP/1.1 200 OK\r\nContent-Length: 12\r\nHello World\r\n\r\n");
                 int nwrite, data_size = strlen(buf);
                 n = data_size;
                 while (n > 0)
                 {
                     nwrite = write(fd, buf + data_size - n, n);
-                    if (nwrite < n)
-                    {
-                        if (nwrite == -1 && errno != EAGAIN)
-                        {
-                            perror("write error");
-                        }
-                        break;
-                    }
+					if (nwrite <= 0 && errno != EAGAIN)
+					{
+						perror("write error");
+						close(fd); // close了socket后就不用从，epoll_ctl 中删除了
+						break;
+					}
                     n -= nwrite;
                 }
-                close(fd); // close了socket后就不用从，epoll_ctl 中删除了
-                printf("bye\n");
             }
         }
     }

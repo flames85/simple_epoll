@@ -1,7 +1,7 @@
 
 // pro
 #include "hyc_master_mgr.h"
-#include "hyc_task_master.h"
+#include "hyc_master.h"
 
 HycMasterMgr::HycMasterMgr()
 {
@@ -18,25 +18,41 @@ HycMasterMgr* HycMasterMgr::GetInstance(){
     return m_Instance;
 }
 
-HycTaskMaster* HycMasterMgr::CreateMaster(const string &sName)
+void HycMasterMgr::PostEvent(const HycEvent &event)
 {
-    HycTaskMaster *master = NULL;
+    HycMaster *master = NULL;
+    map<string, HycMaster*>::iterator it = m_allMaster.begin();
+    for(; it != m_allMaster.end(); it++)
+    {
+        master = it->second;
+
+        if(!master->PostEvent(event))
+        {
+            cout << "master:" << master->m_sName << "post event error" << endl;
+        }
+
+    }
+}
+
+HycMaster* HycMasterMgr::CreateMaster(const string &sName)
+{
+    HycMaster *master = NULL;
 
     master = GetMaster(sName);
 
     if(!master)
     {
-        master = new HycTaskMaster(sName);
+        master = new HycMaster(sName);
         m_allMaster[sName] = master;
     }
     return master;
 }
 
-HycTaskMaster* HycMasterMgr::GetMaster(const string &sName)
+HycMaster* HycMasterMgr::GetMaster(const string &sMaster)
 {
-    HycTaskMaster *master = NULL;
+    HycMaster *master = NULL;
 
-    map<string, HycTaskMaster*>::iterator it = m_allMaster.find(sName);
+    map<string, HycMaster*>::iterator it = m_allMaster.find(sMaster);
 
     if(it != m_allMaster.end())
     {
@@ -45,4 +61,3 @@ HycTaskMaster* HycMasterMgr::GetMaster(const string &sName)
 
     return master;
 }
-

@@ -5,9 +5,13 @@
 #include <string>
 #include <map>
 
+// pro
+#include "hyc_master.h"
+
 using namespace std;
 
-class HycTaskMaster;
+class HycSlave;
+class HycMaster;
 
 class HycMasterMgr
 {
@@ -16,13 +20,16 @@ public:
 
     static HycMasterMgr* GetInstance();
 
-    HycTaskMaster* CreateMaster(const string &sName);
+    void PostEvent(const HycEvent &event);
 
-    HycTaskMaster* GetMaster(const string &sName);
+    HycMaster* CreateMaster(const string &sName);
+
+    HycMaster* GetMaster(const string &sMaster);
+
 
 private:
 
-    map<string, HycTaskMaster*>     m_allMaster;
+    map<string, HycMaster*>         m_allMaster;
 
     static HycMasterMgr             *m_Instance;
 };
